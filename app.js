@@ -1,6 +1,5 @@
-const KEY='shiftAppV3';
+const KEY='shiftAppV4Complete';
 let currentRole='manager', currentName='', currentMonthKey='';
-let cloudEnabled=false, firebaseConfig=null;
 
 function makeMonthKeys(){
   const now=new Date();
@@ -20,7 +19,14 @@ function mOf(k){return Number(k.slice(5,7))-1}
 const defaultData={
   pass:{manager:'0000',developer:'9999',staff:''},
   months:{},
-  shifts:{A:{time:'5:00〜14:00',hours:8},B:{time:'5:00〜11:00',hours:6},C:{time:'5:30〜10:30',hours:5},D:{time:'6:30〜11:00',hours:4.5},E:{time:'6:00〜10:30',hours:4.5},F:{time:'タイミー',hours:5}},
+  shifts:{
+    A:{time:'5:00〜14:00',hours:8,break:1},
+    B:{time:'5:00〜11:00',hours:6,break:0},
+    C:{time:'5:30〜10:30',hours:5,break:0},
+    D:{time:'6:30〜11:00',hours:4.5,break:0},
+    E:{time:'6:00〜10:30',hours:4.5,break:0},
+    F:{time:'タイミー',hours:5,break:0}
+  },
   need:{base:2,60:3,80:4,100:5,120:6},
   maxConsecutive:5,
   staffs:[
@@ -37,32 +43,28 @@ const defaultData={
 
 function monthTemplate(k){
   const d=daysInMonth(k);
-  return {meals:Array(d).fill(0),requests:{},schedule:{}};
+  let meals=Array(d).fill(0);
+  if(k===monthKeys[0] && d===31){
+    meals=[65,60,97,63,72,71,65,69,71,107,67,68,74,130,100,87,66,33,47,56,91,100,76,52,53,68,76,56,72,77,78];
+  }
+  return {meals,requests:{},schedule:{}};
 }
-function ensureMonths(obj){
-  if(!obj.months)obj.months={};
+function ensureData(obj){
+  if(!obj) obj=structuredClone(defaultData);
+  if(!obj.pass) obj.pass={manager:'0000',developer:'9999',staff:''};
+  if(!obj.months) obj.months={};
   monthKeys.forEach(k=>{
     if(!obj.months[k]) obj.months[k]=monthTemplate(k);
-    if(!obj.months[k].meals || obj.months[k].meals.length!==daysInMonth(k)) obj.months[k].meals=Array(daysInMonth(k)).fill(0);
+    const d=daysInMonth(k);
+    if(!obj.months[k].meals || obj.months[k].meals.length!==d) obj.months[k].meals=Array(d).fill(0);
     if(!obj.months[k].requests) obj.months[k].requests={};
     if(!obj.months[k].schedule) obj.months[k].schedule={};
   });
   return obj;
 }
-
 let data=load();
-function load(){
-  try{
-    const saved=JSON.parse(localStorage.getItem(KEY));
-    return ensureMonths(saved || structuredClone(defaultData));
-  }catch(e){
-    return ensureMonths(structuredClone(defaultData));
-  }
-}
-function save(){
-  localStorage.setItem(KEY,JSON.stringify(data));
-  if(cloudEnabled) cloudSave();
-}
+function load(){try{return ensureData(JSON.parse(localStorage.getItem(KEY)))}catch(e){return ensureData(structuredClone(defaultData))}}
+function save(){localStorage.setItem(KEY,JSON.stringify(data))}
 function $(id){return document.getElementById(id)}
 function md(){return data.months[currentMonthKey]}
 function dow(k,d){return ['日','月','火','水','木','金','土'][new Date(yOf(k),mOf(k),d).getDay()]}
@@ -75,9 +77,13 @@ function init(){
     if($(id)) $(id).innerHTML=monthKeys.map(k=>`<option value="${k}">${monthName(k)}</option>`).join('');
   });
   $('loginName').innerHTML=data.staffs.map(s=>`<option>${s.name}</option>`).join('');
-  loadCloudLocal();
+  toggleLoginName();
   renderAll();
   if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
+}
+function toggleLoginName(){
+  if($('role').value==='staff') $('loginNameBox').classList.remove('hidden');
+  else $('loginNameBox').classList.add('hidden');
 }
 function login(){
   currentRole=$('role').value;
@@ -87,12 +93,10 @@ function login(){
   $('login').classList.add('hidden');$('app').classList.remove('hidden');
   $('who').textContent=currentRole==='manager'?'店長・管理者':currentRole==='developer'?'西岡・開発者':currentName+' さん';
   document.querySelectorAll('.admin').forEach(el=>el.style.display=currentRole==='staff'?'none':'');
-  document.querySelectorAll('.developerOnly').forEach(el=>el.style.display=currentRole==='developer'?'':'none');
   if(currentRole==='staff') showTab('request');
   renderAll();
 }
 function demoLogin(){ $('role').value='manager'; $('pass').value=data.pass.manager; login(); }
-
 function showTab(id){
   document.querySelectorAll('.page').forEach(p=>p.classList.add('hidden'));
   $(id).classList.remove('hidden');
@@ -100,12 +104,10 @@ function showTab(id){
   renderAll();
 }
 function changeMonth(k){ currentMonthKey=k; renderAll(); }
-
 function renderAll(){
   ['monthSelect','mealMonthSelect','scheduleMonthSelect'].forEach(id=>{if($(id))$(id).value=currentMonthKey});
   if($('monthLabel')) $('monthLabel').textContent=monthName(currentMonthKey);
-  if($('saveMode')) $('saveMode').textContent=cloudEnabled?'クラウド保存':'端末内保存';
-  renderHome();renderRequests();renderMeals();renderStaffs();renderRules();renderPasswords();renderSchedule();renderCloud();
+  renderHome();renderRequests();renderMeals();renderStaffs();renderRules();renderPasswords();renderSchedule();
 }
 function renderHome(){
   let c={},h={};data.staffs.forEach(s=>{c[s.name]=0;h[s.name]=0});
@@ -154,6 +156,9 @@ function saveMeals(){
   document.querySelectorAll('[data-meal]').forEach(i=>md().meals[Number(i.dataset.meal)-1]=Number(i.value||0));
   save();renderAll();alert('食数を保存しました');
 }
+function fillMealsZero(){
+  if(confirm('表示月の食数を全部0にしますか？')){md().meals=Array(daysInMonth(currentMonthKey)).fill(0);save();renderAll();}
+}
 function renderStaffs(){
   $('staffArea').innerHTML=data.staffs.map((s,i)=>`<div class=card><div class=grid>
   <div><label>名前</label><input data-staff=${i} data-key=name value="${s.name}"></div>
@@ -167,14 +172,18 @@ function saveStaffs(){
   document.querySelectorAll('[data-staff]').forEach(i=>{
     let s=data.staffs[Number(i.dataset.staff)],k=i.dataset.key;
     if(k==='maxDays')s[k]=Number(i.value);
-    else if(k==='can'||k==='priority')s[k]=i.value.split(',').map(x=>x.trim()).filter(Boolean);
+    else if(k==='can'||k==='priority')s[k]=i.value.split(',').map(x=>x.trim().toUpperCase()).filter(Boolean);
     else s[k]=i.value.trim();
   });
   save();init();alert('保存しました');
 }
 function addStaff(){data.staffs.push({name:'新スタッフ',maxDays:10,can:['B'],priority:['B'],memo:''});save();renderStaffs();}
 function renderRules(){
-  $('shiftArea').innerHTML=Object.entries(data.shifts).map(([k,v])=>`<div class=grid><div><label>${k} 時間</label><input data-shift=${k} data-key=time value="${v.time}"></div><div><label>${k} 勤務時間</label><input type=number step=0.5 data-shift=${k} data-key=hours value="${v.hours}"></div></div>`).join('');
+  $('shiftArea').innerHTML=Object.entries(data.shifts).map(([k,v])=>`<div class=grid>
+    <div><label>${k} 時間</label><input data-shift=${k} data-key=time value="${v.time}"></div>
+    <div><label>${k} 勤務時間</label><input type=number step=0.5 data-shift=${k} data-key=hours value="${v.hours}"></div>
+    <div><label>${k} 休憩</label><input type=number step=0.5 data-shift=${k} data-key=break value="${v.break||0}"></div>
+  </div>`).join('');
   $('baseNeed').value=data.need.base;$('need60').value=data.need[60];$('need80').value=data.need[80];$('need100').value=data.need[100];$('need120').value=data.need[120];$('maxConsecutive').value=data.maxConsecutive;
 }
 function saveRules(){
@@ -222,6 +231,7 @@ function renderSchedule(){
   h+='<tr><th class=nameCell>実績/必要</th>';
   for(let d=1;d<=D;d++){let actual=0;names.forEach(n=>{if(isWork((md().schedule[d]||{})[n]))actual++});let need=needPeople(md().meals[d-1]||0);h+=`<td class="${actual>=need?'good':'bad'}">${actual}/${need}</td>`}
   h+='<td></td><td></td></tr>';$('scheduleTable').innerHTML=h;
+  $('printLegend').innerHTML=Object.entries(data.shifts).map(([k,v])=>`${k}：${v.time}（${v.hours}h）`).join('　');
 }
 function editCell(day,name,val){val=val.trim().toUpperCase();if(!md().schedule[day])md().schedule[day]={};md().schedule[day][name]=val;save();renderHome();}
 function exportCSV(){
@@ -230,30 +240,8 @@ function exportCSV(){
   downloadText('shift-'+currentMonthKey+'.csv','\ufeff'+rows.map(r=>r.map(x=>`"${String(x).replaceAll('"','""')}"`).join(',')).join('\n'),'text/csv');
 }
 function exportBackup(){downloadText('shift-backup.json',JSON.stringify(data,null,2),'application/json')}
-function importBackup(e){let f=e.target.files[0];if(!f)return;let r=new FileReader();r.onload=()=>{data=ensureMonths(JSON.parse(r.result));save();init();alert('読み込みました')};r.readAsText(f)}
+function importBackup(e){let f=e.target.files[0];if(!f)return;let r=new FileReader();r.onload=()=>{data=ensureData(JSON.parse(r.result));save();init();alert('読み込みました')};r.readAsText(f)}
 function downloadText(name,text,type){let a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type}));a.download=name;a.click()}
 function resetAll(){if(confirm('全部初期化する？')){localStorage.removeItem(KEY);data=load();init();alert('初期化しました')}}
-
-function loadCloudLocal(){
-  cloudEnabled=localStorage.getItem('shiftCloudEnabled')==='true';
-  try{firebaseConfig=JSON.parse(localStorage.getItem('shiftFirebaseConfig')||'null')}catch(e){}
-}
-function renderCloud(){
-  if(!$('cloudStatus'))return;
-  const c=firebaseConfig||{};
-  ['apiKey','authDomain','projectId','storageBucket','messagingSenderId','appId'].forEach(k=>{if($('fb_'+k))$('fb_'+k).value=c[k]||''});
-  $('cloudStatus').innerHTML=cloudEnabled?'<span class=good>クラウド保存：有効</span>':'<span class=bad>クラウド保存：無効（端末内保存）</span>';
-}
-function saveFirebaseConfig(){
-  firebaseConfig={
-    apiKey:$('fb_apiKey').value,authDomain:$('fb_authDomain').value,projectId:$('fb_projectId').value,
-    storageBucket:$('fb_storageBucket').value,messagingSenderId:$('fb_messagingSenderId').value,appId:$('fb_appId').value
-  };
-  localStorage.setItem('shiftFirebaseConfig',JSON.stringify(firebaseConfig));
-  alert('Firebase設定を保存しました。次にクラウド保存を有効化してください。');
-}
-function enableCloudMode(){cloudEnabled=true;localStorage.setItem('shiftCloudEnabled','true');renderAll();alert('クラウド保存を有効にしました。Firebase接続処理は次の設定で本接続します。')}
-function disableCloudMode(){cloudEnabled=false;localStorage.setItem('shiftCloudEnabled','false');renderAll();alert('端末内保存に戻しました')}
-function cloudSave(){console.log('Firebase-ready: cloudSave placeholder', data)}
 
 init();

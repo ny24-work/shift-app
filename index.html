@@ -2,16 +2,18 @@
 <html lang="ja">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="theme-color" content="#2563eb">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#1d4ed8">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="stylesheet" href="style.css">
-  <title>勤務予定表 自動作成 Ver.3.0</title>
+  <title>勤務予定表 自動作成 完成版 Ver.4.0</title>
 </head>
 <body>
 <header>
-  <h1>勤務予定表 自動作成 Ver.3.0</h1>
-  <p>店長＝管理 / 西岡＝開発 / スタッフ＝希望休・閲覧</p>
+  <div>
+    <h1>勤務予定表 自動作成 完成版 Ver.4.0</h1>
+    <p>店長＝管理 / 西岡＝開発 / スタッフ＝希望休・閲覧</p>
+  </div>
 </header>
 
 <main>
@@ -20,13 +22,13 @@
     <div class="grid">
       <div>
         <label>役割</label>
-        <select id="role">
+        <select id="role" onchange="toggleLoginName()">
           <option value="manager">店長・管理者</option>
           <option value="developer">西岡・開発者</option>
           <option value="staff">スタッフ</option>
         </select>
       </div>
-      <div>
+      <div id="loginNameBox">
         <label>スタッフ名</label>
         <select id="loginName"></select>
       </div>
@@ -37,13 +39,11 @@
     </div>
     <button onclick="login()">入る</button>
     <button class="ghost" onclick="demoLogin()">店長で試す</button>
-    <p class="muted">
-      Ver.3.0はFirebase対応版です。Firebase設定を入れるまでは端末内保存で動きます。
-    </p>
+    <p class="muted">初期パスワード：店長0000 / 西岡9999 / スタッフ空欄</p>
   </section>
 
   <section id="app" class="hidden">
-    <nav class="tabs">
+    <nav class="tabs noPrint">
       <button class="tab active" data-tab="home" onclick="showTab('home')">ホーム</button>
       <button class="tab" data-tab="request" onclick="showTab('request')">希望休</button>
       <button class="tab admin" data-tab="meals" onclick="showTab('meals')">食数</button>
@@ -51,31 +51,33 @@
       <button class="tab admin" data-tab="rules" onclick="showTab('rules')">ルール</button>
       <button class="tab admin" data-tab="schedule" onclick="showTab('schedule')">勤務表</button>
       <button class="tab admin" data-tab="passwords" onclick="showTab('passwords')">パスワード</button>
-      <button class="tab developerOnly" data-tab="cloud" onclick="showTab('cloud')">Firebase</button>
-      <button class="tab admin" data-tab="backup" onclick="showTab('backup')">保存/共有</button>
+      <button class="tab admin" data-tab="share" onclick="showTab('share')">共有/保存</button>
     </nav>
 
     <section id="home" class="card page">
       <h2>ホーム</h2>
       <div class="row">
         <span id="who" class="pill"></span>
-        <span id="saveMode" class="pill"></span>
         <span id="monthLabel" class="pill"></span>
+        <span id="saveMode" class="pill">端末内保存</span>
       </div>
+
       <div class="row">
         <label class="inline">表示月
           <select id="monthSelect" onchange="changeMonth(this.value)"></select>
         </label>
-        <button class="admin" onclick="generateSchedule()">表示月のシフト自動作成</button>
+        <button class="admin" onclick="generateSchedule()">シフト自動作成</button>
+        <button class="admin secondary" onclick="showTab('schedule')">勤務表を見る</button>
         <button class="ghost" onclick="exportCSV()">CSV出力</button>
       </div>
-      <div id="homeCards" class="grid"></div>
+
+      <div class="grid" id="homeCards"></div>
       <div id="warnings" class="status"></div>
     </section>
 
     <section id="request" class="card page hidden">
       <h2>希望休</h2>
-      <p class="muted">今月・翌月・翌々月の3ヶ月分を登録できます。</p>
+      <p class="muted">今月・翌月・翌々月の3ヶ月分を登録できます。スタッフは自分の希望休だけ編集できます。</p>
       <div id="requestArea"></div>
       <button onclick="saveRequests()">希望休を保存</button>
     </section>
@@ -86,6 +88,7 @@
         <label class="inline">表示月
           <select id="mealMonthSelect" onchange="changeMonth(this.value)"></select>
         </label>
+        <button class="ghost" onclick="fillMealsZero()">食数を0で初期化</button>
       </div>
       <div class="tableWrap"><table id="mealTable"></table></div>
       <button onclick="saveMeals()">食数を保存</button>
@@ -93,6 +96,7 @@
 
     <section id="staff" class="card page hidden">
       <h2>スタッフ設定</h2>
+      <p class="muted">入れる勤務・優先勤務順は「A,B,D」のようにカンマ区切りで入力。</p>
       <div id="staffArea"></div>
       <button onclick="saveStaffs()">保存</button>
       <button class="ghost" onclick="addStaff()">スタッフ追加</button>
@@ -122,9 +126,11 @@
           <select id="scheduleMonthSelect" onchange="changeMonth(this.value)"></select>
         </label>
         <button onclick="generateSchedule()">シフト自動作成</button>
-        <button class="secondary" onclick="window.print()">印刷/PDF保存</button>
+        <button class="secondary" onclick="window.print()">印刷 / PDF保存</button>
+        <button class="ghost" onclick="renderSchedule()">再表示</button>
       </div>
       <div class="tableWrap"><table id="scheduleTable"></table></div>
+      <div id="printLegend" class="legend"></div>
     </section>
 
     <section id="passwords" class="card page hidden">
@@ -136,26 +142,9 @@
       <button onclick="savePasswords()">パスワード保存</button>
     </section>
 
-    <section id="cloud" class="card page hidden">
-      <h2>Firebase設定</h2>
-      <p class="muted">ここにFirebaseの設定を入れると、店長・西岡・スタッフ全員で同じデータを共有できます。</p>
-      <div class="grid">
-        <div><label>apiKey</label><input id="fb_apiKey"></div>
-        <div><label>authDomain</label><input id="fb_authDomain"></div>
-        <div><label>projectId</label><input id="fb_projectId"></div>
-        <div><label>storageBucket</label><input id="fb_storageBucket"></div>
-        <div><label>messagingSenderId</label><input id="fb_messagingSenderId"></div>
-        <div><label>appId</label><input id="fb_appId"></div>
-      </div>
-      <button onclick="saveFirebaseConfig()">Firebase設定を保存</button>
-      <button class="ghost" onclick="enableCloudMode()">クラウド保存を有効化</button>
-      <button class="ghost" onclick="disableCloudMode()">端末内保存に戻す</button>
-      <div id="cloudStatus" class="status"></div>
-    </section>
-
-    <section id="backup" class="card page hidden">
-      <h2>保存 / 共有</h2>
-      <p class="muted">GitHub PagesのURLを店長に送るだけで開けます。Firebase有効化前は端末内保存です。</p>
+    <section id="share" class="card page hidden">
+      <h2>共有 / 保存</h2>
+      <p class="muted">GitHub Pagesで公開したURLを店長へ送れば使えます。この完成版は端末内保存です。職場全員で同じデータを共有する場合は、次にFirebase連携を追加します。</p>
       <button onclick="exportBackup()">バックアップJSON出力</button>
       <button class="ghost" onclick="document.getElementById('importFile').click()">バックアップ読込</button>
       <input id="importFile" class="hidden" type="file" accept=".json" onchange="importBackup(event)">
