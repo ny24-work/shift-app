@@ -1,19 +1,21 @@
-勤務予定表 自動作成 Ver.1.0
+勤務予定表 自動作成 Ver.3.0
 
-初期パスコード
+入っている機能
+- 開発者名：西岡・開発者
+- 今月・翌月・翌々月の3ヶ月表示
+- 希望休・食数・勤務表を3ヶ月分登録
+- 店長/西岡のパスワード変更
+- GitHub Pages公開対応
+- PWA対応
+- Firebase設定画面つき
+
+初期パスワード
 店長：0000
-やす：9999
+西岡：9999
 スタッフ：空欄
 
-GitHub Pagesで公開する方法
-1. GitHubで shift-app という新しいリポジトリを作る
-2. このZIPの中身を全部アップロード
-3. Settings → Pages
-4. Source：Deploy from a branch
-5. Branch：main / root
-6. Save
-7. URLを店長へ共有
-
-注意
-このVer.1.0は端末内保存です。
-全員で同じデータをリアルタイム共有するには、次にFirebase版へ変更します。
+GitHub更新方法
+1. ZIPを解凍
+2. 中の7ファイルを全部GitHubへ上書きアップロード
+3. Commit changes
+4. 公開URLの最後に ?v=3 を付けて開く
