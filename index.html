@@ -6,40 +6,41 @@
   <meta name="theme-color" content="#1d4ed8">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="stylesheet" href="style.css">
-  <title>勤務予定表 自動作成 完成版 Ver.4.0</title>
+  <title>勤務予定表 自動作成 完成版 Ver.4.1</title>
 </head>
 <body>
 <header>
   <div>
-    <h1>勤務予定表 自動作成 完成版 Ver.4.0</h1>
-    <p>店長＝管理 / 西岡＝開発 / スタッフ＝希望休・閲覧</p>
+    <h1>勤務予定表 自動作成 完成版 Ver.4.1</h1>
+    <p>店長＝管理 / 西岡＝開発 / スタッフ＝希望休・勤務表閲覧</p>
   </div>
 </header>
 
 <main>
   <section id="login" class="card">
     <h2>ログイン</h2>
+
+    <h3>スタッフ</h3>
     <div class="grid">
       <div>
-        <label>役割</label>
-        <select id="role" onchange="toggleLoginName()">
-          <option value="manager">店長・管理者</option>
-          <option value="developer">西岡・開発者</option>
-          <option value="staff">スタッフ</option>
-        </select>
-      </div>
-      <div id="loginNameBox">
         <label>スタッフ名</label>
         <select id="loginName"></select>
       </div>
+    </div>
+    <button onclick="staffLogin()">スタッフで入る</button>
+    <p class="muted">スタッフは希望休の入力と勤務表の閲覧だけできます。</p>
+
+    <hr>
+
+    <h3>店長 / 西岡</h3>
+    <div class="grid">
       <div>
-        <label>パスワード</label>
-        <input id="pass" type="password" placeholder="店長0000 / 西岡9999 / スタッフ空欄">
+        <label>管理者パスワード</label>
+        <input id="adminPass" type="password" placeholder="パスワードを入力">
       </div>
     </div>
-    <button onclick="login()">入る</button>
-    <button class="ghost" onclick="demoLogin()">店長で試す</button>
-    <p class="muted">初期パスワード：店長0000 / 西岡9999 / スタッフ空欄</p>
+    <button onclick="adminLogin()">管理者として入る</button>
+    <p class="muted">店長・西岡はパスワードで自動判定します。パスワードは表示しません。</p>
   </section>
 
   <section id="app" class="hidden">
@@ -49,7 +50,7 @@
       <button class="tab admin" data-tab="meals" onclick="showTab('meals')">食数</button>
       <button class="tab admin" data-tab="staff" onclick="showTab('staff')">スタッフ</button>
       <button class="tab admin" data-tab="rules" onclick="showTab('rules')">ルール</button>
-      <button class="tab admin" data-tab="schedule" onclick="showTab('schedule')">勤務表</button>
+      <button class="tab" data-tab="schedule" onclick="showTab('schedule')">勤務表</button>
       <button class="tab admin" data-tab="passwords" onclick="showTab('passwords')">パスワード</button>
       <button class="tab admin" data-tab="share" onclick="showTab('share')">共有/保存</button>
     </nav>

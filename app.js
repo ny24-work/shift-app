@@ -81,22 +81,42 @@ function init(){
   renderAll();
   if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
 }
-function toggleLoginName(){
-  if($('role').value==='staff') $('loginNameBox').classList.remove('hidden');
-  else $('loginNameBox').classList.add('hidden');
-}
-function login(){
-  currentRole=$('role').value;
-  currentName=$('loginName').value;
-  const p=$('pass').value;
-  if(data.pass[currentRole] && p!==data.pass[currentRole]){alert('パスワードが違います');return}
-  $('login').classList.add('hidden');$('app').classList.remove('hidden');
-  $('who').textContent=currentRole==='manager'?'店長・管理者':currentRole==='developer'?'西岡・開発者':currentName+' さん';
+function toggleLoginName(){}
+function openApp(){
+  $('login').classList.add('hidden');
+  $('app').classList.remove('hidden');
   document.querySelectorAll('.admin').forEach(el=>el.style.display=currentRole==='staff'?'none':'');
-  if(currentRole==='staff') showTab('request');
   renderAll();
 }
-function demoLogin(){ $('role').value='manager'; $('pass').value=data.pass.manager; login(); }
+function staffLogin(){
+  currentRole='staff';
+  currentName=$('loginName').value;
+  $('who').textContent=currentName+' さん';
+  openApp();
+  showTab('request');
+}
+function adminLogin(){
+  const p=$('adminPass').value;
+  if(p && p===data.pass.manager){
+    currentRole='manager';
+    currentName='店長';
+    $('who').textContent='店長・管理者';
+    openApp();
+    showTab('home');
+    return;
+  }
+  if(p && p===data.pass.developer){
+    currentRole='developer';
+    currentName='西岡';
+    $('who').textContent='西岡・開発者';
+    openApp();
+    showTab('home');
+    return;
+  }
+  alert('パスワードが違います');
+}
+function login(){adminLogin()}
+function demoLogin(){alert('安全のため「店長で試す」は削除しました。管理者パスワードでログインしてください。')}
 function showTab(id){
   document.querySelectorAll('.page').forEach(p=>p.classList.add('hidden'));
   $(id).classList.remove('hidden');
